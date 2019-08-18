@@ -3,6 +3,9 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
 
+import Swipeable from '../component/Swipeable.jsx';
+const email = 'bill42362@gmail.com';
+
 export class Home extends React.PureComponent {
   render() {
     const { data, index } = this.props;
@@ -13,7 +16,7 @@ export class Home extends React.PureComponent {
           <Index color={data[index].code}>{colorName}</Index>
         </Header>
         <SwipeableWrapper>
-          <Swipeable>
+          <Swipeable currentIndex={index}>
             {data.map(color => (
               <SwipeableItemWrapper key={color.id}>
                 <Item color={color.code}>
@@ -25,7 +28,7 @@ export class Home extends React.PureComponent {
           </Swipeable>
         </SwipeableWrapper>
         <Footer>
-          <Email>bill42362@gmail.com</Email>
+          <Email href={`mailto:${email}`}>{email}</Email>
         </Footer>
       </StyledHome>
     );
@@ -67,12 +70,6 @@ const SwipeableWrapper = styled.div`
   height: 70%;
   background-color: #576574;
 `;
-const Swipeable = styled.div`
-  display: flex;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-`;
 const SwipeableItemWrapper = styled.div`
   flex: none;
   width: 100%;
@@ -107,8 +104,8 @@ const Footer = styled.div`
   align-items: flex-end;
   padding: 20px;
 `;
-const Email = styled.div`
-  color: #c8d6e5;
+const Email = styled.a`
+  color: #54a0ff;
 `;
 
 export default Home;
