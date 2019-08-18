@@ -9,6 +9,8 @@ import styled, {
 } from 'styled-components';
 import styledNormalize from 'styled-normalize';
 
+import Home from '../container/Home.js';
+
 const GlobalStyle = createGlobalStyle`
   ${styledNormalize};
   *, ::after, ::before { box-sizing: border-box; }
@@ -33,7 +35,7 @@ const App = () => {
   return (
     <StyledApp>
       <GlobalStyle />
-      Hello!
+      <Home />
     </StyledApp>
   );
 };
