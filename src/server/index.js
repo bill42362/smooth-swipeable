@@ -8,15 +8,19 @@ import clientConfig, { hmrConfig } from '../../webpack/client.babel.js';
 import renderHtml from './renderHtml.js';
 
 const PORT = process.env.PORT || 3000;
+const shouldUseHttps = process.env.USE_HTTPS;
 
 const app = Express();
-const server = https.createServer(
-  {
-    key: fs.readFileSync('./devserver.key'),
-    cert: fs.readFileSync('./devserver.crt'),
-  },
-  app
-);
+let server = undefined;
+if (shouldUseHttps) {
+  server = https.createServer(
+    {
+      key: fs.readFileSync('./devserver.key'),
+      cert: fs.readFileSync('./devserver.crt'),
+    },
+    app
+  );
+}
 app.use(Helmet());
 
 const webpack = require('webpack');
@@ -52,7 +56,12 @@ renderHtml({ jsTags })
   .then(({ html }) => {
     app.get('/*', (_, response) => response.send(html));
 
-    return server.listen(PORT, () =>
+    if (shouldUseHttps) {
+      return server.listen(PORT, () =>
+        console.log(`Server is listening ${PORT} port.`)
+      );
+    }
+    return app.listen(PORT, () =>
       console.log(`Server is listening ${PORT} port.`)
     );
   })
