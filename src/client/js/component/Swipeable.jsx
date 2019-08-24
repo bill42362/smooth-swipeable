@@ -2,40 +2,78 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
+import { fromEvent, merge } from 'rxjs';
+import { map, concatMap, takeUntil } from 'rxjs/operators';
+
+const mapMouseToPosition = e => {
+  e.preventDefault();
+  return {
+    x: e.pageX || e.clientX,
+    y: e.pageY || e.clientY,
+  };
+};
+
+const mapTouchToPosition = e => {
+  e.preventDefault();
+  const [touch] = e.changedTouches;
+  return {
+    x: touch.pageX || touch.clientX,
+    y: touch.pageY || touch.clientY,
+  };
+};
 
 export class Swipeable extends React.PureComponent {
   state = {
-    originX: null,
-    originY: null,
     deltaX: 0,
     deltaY: 0,
   };
 
-  handleToucheStart = e => {
-    e.preventDefault();
-    const [touch] = e.changedTouches;
-    return this.setState({ originX: touch.pageX, originY: touch.pageY });
-  };
+  componentDidMount() {
+    this.mouseStart = fromEvent(this.base, 'mousedown');
+    this.touchStart = fromEvent(this.base, 'touchstart');
+    this.mouseMove = fromEvent(document, 'mousemove');
+    this.touchMove = fromEvent(document, 'touchmove');
+    this.mouseEnd = fromEvent(document, 'mouseup');
+    this.touchEnd = fromEvent(document, 'touchend');
 
-  handleToucheMove = e => {
-    e.preventDefault();
-    const { originX, originY } = this.state;
-    const [touch] = e.changedTouches;
-    return this.setState({
-      deltaX: touch.pageX - originX,
-      deltaY: touch.pageY - originY,
-    });
-  };
+    this.start = merge(
+      this.mouseStart.pipe(map(mapMouseToPosition)),
+      this.touchStart.pipe(map(mapTouchToPosition))
+    );
+    this.move = merge(
+      this.mouseMove.pipe(map(mapMouseToPosition)),
+      this.touchMove.pipe(map(mapTouchToPosition))
+    );
+    this.end = merge(
+      this.mouseEnd.pipe(map(mapMouseToPosition)),
+      this.touchEnd.pipe(map(mapTouchToPosition))
+    );
 
-  handleToucheEnd = e => {
-    e.preventDefault();
-    return this.setState({
-      originX: null,
-      originY: null,
-      deltaX: 0,
-      deltaY: 0,
-    });
-  };
+    this.drag = this.start.pipe(
+      concatMap(startPosition =>
+        this.move.pipe(takeUntil(this.end)).pipe(
+          map(movePosiiton => ({
+            x: movePosiiton.x - startPosition.x,
+            y: movePosiiton.y - startPosition.y,
+          }))
+        )
+      )
+    );
+
+    this.drag.subscribe(delta => this.setState({ deltaX: delta.x }));
+    this.end.subscribe(() => this.setState({ deltaX: 0 }));
+  }
+
+  componentWillUnmount() {
+    this.mouseStart.unsubscribe();
+    this.touchStart.unsubscribe();
+    this.mouseMove.unsubscribe();
+    this.touchMove.unsubscribe();
+    this.mouseEnd.unsubscribe();
+    this.touchEnd.unsubscribe();
+    this.drag.unsubscribe();
+    this.end.unsubscribe();
+  }
 
   render() {
     const { deltaX, deltaY } = this.state;
@@ -47,11 +85,7 @@ export class Swipeable extends React.PureComponent {
     const current = childrenArray[currentIndex];
     const next = childrenArray[currentIndex + 1] || childrenArray[0];
     return (
-      <StyledSwipeable
-        onTouchMove={this.handleToucheMove}
-        onTouchStart={this.handleToucheStart}
-        onTouchEnd={this.handleToucheEnd}
-      >
+      <StyledSwipeable ref={el => (this.base = el)}>
         <Axis>{`(${deltaX}, ${deltaY})`}</Axis>
         <ItemWrapper deltaX={deltaX} deltaY={deltaY}>
           {previous}
