@@ -2,7 +2,14 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
-import { fromEvent, merge, of, animationFrameScheduler, timer } from 'rxjs';
+import {
+  fromEvent,
+  merge,
+  of,
+  animationFrameScheduler,
+  timer,
+  concat,
+} from 'rxjs';
 import {
   map,
   concatMap,
@@ -11,6 +18,8 @@ import {
   switchMap,
   repeat,
 } from 'rxjs/operators';
+
+const ANIMATE_TIME = 300;
 
 const mapMouseToPosition = e => {
   e.preventDefault();
@@ -75,24 +84,46 @@ export class Swipeable extends React.PureComponent {
             const isForward = startX < endX;
             const isCancelled =
               2 * Math.abs(startX - endX) < this.base.clientWidth;
-            return isCancelled ? 0 : isForward ? 1 : -1;
+            return {
+              target: isCancelled ? 0 : isForward ? 1 : -1,
+              endDeltaX: endX - startX,
+            };
           })
         )
       )
     );
 
     this.drag.subscribe(delta => this.setState({ deltaX: delta.x }));
-    this.drop.subscribe(() => this.setState({ deltaX: 0 }));
     this.drop
       .pipe(
-        switchMap(target =>
-          of(target, animationFrameScheduler).pipe(
-            repeat(),
-            takeUntil(timer(600))
-          )
-        )
+        switchMap(data => {
+          const startTime = Date.now();
+          return concat(
+            of({ ...data, startTime }, animationFrameScheduler).pipe(
+              repeat(),
+              takeUntil(timer(ANIMATE_TIME))
+            ),
+            of({ ...data, isFinal: true })
+          );
+        })
       )
-      .subscribe(target => target);
+      .subscribe(({ startTime, target, endDeltaX, isFinal }) => {
+        if (isFinal) {
+          const { children, currentIndex, setIndex } = this.props;
+          this.setState({ deltaX: 0 });
+          let nextIndex = currentIndex - target;
+          if (-1 === nextIndex) {
+            nextIndex = children.length - 1;
+          } else if (nextIndex === children.length) {
+            nextIndex = 0;
+          }
+          return setIndex({ index: nextIndex });
+        }
+        const offsetTime = Date.now() - startTime;
+        const targetX = target * this.base.clientWidth;
+        const offsetX = ((targetX - endDeltaX) * offsetTime) / ANIMATE_TIME;
+        return this.setState({ deltaX: endDeltaX + offsetX });
+      });
   }
 
   componentWillUnmount() {
@@ -135,11 +166,13 @@ export class Swipeable extends React.PureComponent {
 Swipeable.propTypes = {
   children: PropTypes.node,
   currentIndex: PropTypes.number,
+  setIndex: PropTypes.func,
 };
 
 Swipeable.defaultProps = {
   children: '',
   currentIndex: 0,
+  setIndex: () => null,
 };
 
 const StyledSwipeable = styled.div`

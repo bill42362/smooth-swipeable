@@ -8,7 +8,7 @@ const email = 'bill42362@gmail.com';
 
 export class Home extends React.PureComponent {
   render() {
-    const { data, index } = this.props;
+    const { data, index, setIndex } = this.props;
     const colorName = data[index].id.replace(/-/g, ' ').toUpperCase();
     return (
       <StyledHome>
@@ -16,7 +16,7 @@ export class Home extends React.PureComponent {
           <Index color={data[index].code}>{colorName}</Index>
         </Header>
         <SwipeableWrapper>
-          <Swipeable currentIndex={index}>
+          <Swipeable currentIndex={index} setIndex={setIndex}>
             {data.map(color => (
               <SwipeableItemWrapper key={color.id}>
                 <Item color={color.code}>
@@ -70,6 +70,7 @@ const SwipeableWrapper = styled.div`
   height: 70%;
   background-color: #576574;
 `;
+
 const SwipeableItemWrapper = styled.div`
   flex: none;
   width: 100%;
