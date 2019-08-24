@@ -2,8 +2,15 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import styled from 'styled-components';
-import { fromEvent, merge } from 'rxjs';
-import { map, concatMap, takeUntil } from 'rxjs/operators';
+import { fromEvent, merge, of, animationFrameScheduler, timer } from 'rxjs';
+import {
+  map,
+  concatMap,
+  takeUntil,
+  first,
+  switchMap,
+  repeat,
+} from 'rxjs/operators';
 
 const mapMouseToPosition = e => {
   e.preventDefault();
@@ -59,9 +66,33 @@ export class Swipeable extends React.PureComponent {
         )
       )
     );
+    this.drop = this.start.pipe(
+      concatMap(startPosition =>
+        this.end.pipe(first()).pipe(
+          map(endPosition => {
+            const { x: startX } = startPosition;
+            const { x: endX } = endPosition;
+            const isForward = startX < endX;
+            const isCancelled =
+              2 * Math.abs(startX - endX) < this.base.clientWidth;
+            return isCancelled ? 0 : isForward ? 1 : -1;
+          })
+        )
+      )
+    );
 
     this.drag.subscribe(delta => this.setState({ deltaX: delta.x }));
-    this.end.subscribe(() => this.setState({ deltaX: 0 }));
+    this.drop.subscribe(() => this.setState({ deltaX: 0 }));
+    this.drop
+      .pipe(
+        switchMap(target =>
+          of(target, animationFrameScheduler).pipe(
+            repeat(),
+            takeUntil(timer(600))
+          )
+        )
+      )
+      .subscribe(target => target);
   }
 
   componentWillUnmount() {

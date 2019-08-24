@@ -30,7 +30,7 @@
   "rules": {
     "no-debugger": ["warn"],
     "no-console": ["warn"],
-    "no-unused-vars": ["error", { "ignoreRestSiblings": true }],
+    "no-unused-vars": ["warn", { "ignoreRestSiblings": true }],
     "linebreak-style": ["error", "unix"],
     "quotes": ["error", "single", { "avoidEscape": true }],
     "semi": ["error", "always"],
