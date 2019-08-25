@@ -10,6 +10,9 @@ export class Home extends React.PureComponent {
   render() {
     const { data, index, offsetX, setSwipeableData } = this.props;
     const colorName = data[index].id.replace(/-/g, ' ').toUpperCase();
+    const previousItem = data[index - 1] || data[data.length - 1];
+    const currentItem = data[index];
+    const nextItem = data[index + 1] || data[0];
     return (
       <StyledHome>
         <Header>
@@ -22,14 +25,16 @@ export class Home extends React.PureComponent {
             childrenLength={data.length}
             setSwipeableData={setSwipeableData}
           >
-            {data.map(color => (
-              <SwipeableItemWrapper key={color.id}>
-                <Item color={color.code}>
-                  <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
-                  <Code>{color.code}</Code>
-                </Item>
-              </SwipeableItemWrapper>
-            ))}
+            <SwipeableItems offsetX={offsetX}>
+              {[previousItem, currentItem, nextItem].map(color => (
+                <SwipeableItemWrapper key={color.id}>
+                  <Item color={color.code}>
+                    <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
+                    <Code>{color.code}</Code>
+                  </Item>
+                </SwipeableItemWrapper>
+              ))}
+            </SwipeableItems>
           </Swipeable>
         </SwipeableWrapper>
         <Footer>
@@ -68,6 +73,7 @@ const Header = styled.div`
   justify-content: center;
   align-items: center;
 `;
+
 const Index = styled.div.attrs(({ color }) => ({ style: { color } }))`
   font-size: 24px;
   transition: color 0.6s ease;
@@ -76,6 +82,13 @@ const Index = styled.div.attrs(({ color }) => ({ style: { color } }))`
 const SwipeableWrapper = styled.div`
   height: 70%;
   background-color: #576574;
+`;
+
+const SwipeableItems = styled.div.attrs(({ offsetX }) => ({
+  style: { transform: `translateX(calc(-100% + ${offsetX}px))` },
+}))`
+  display: flex;
+  height: 100%;
 `;
 
 const SwipeableItemWrapper = styled.div`

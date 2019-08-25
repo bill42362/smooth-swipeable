@@ -44,7 +44,7 @@ export class Swipeable extends React.PureComponent {
   };
 
   componentDidMount() {
-    const { index, childrenLength, setSwipeableData } = this.props;
+    const { childrenLength, setSwipeableData } = this.props;
 
     this.mouseStart = fromEvent(this.base, 'mousedown');
     this.touchStart = fromEvent(this.base, 'touchstart');
@@ -94,7 +94,9 @@ export class Swipeable extends React.PureComponent {
       )
     );
 
-    this.drag.subscribe(delta => setSwipeableData({ data: { offsetX: delta.x } }));
+    this.drag.subscribe(delta =>
+      setSwipeableData({ data: { offsetX: delta.x } })
+    );
     this.drop
       .pipe(
         switchMap(data => {
@@ -110,14 +112,14 @@ export class Swipeable extends React.PureComponent {
       )
       .subscribe(({ startTime, target, endDeltaX, isFinal }) => {
         if (isFinal) {
-          setSwipeableData({ data: { offsetX: 0 } });
+          const { index } = this.props;
           let nextIndex = index - target;
           if (-1 === nextIndex) {
             nextIndex = childrenLength - 1;
           } else if (nextIndex === childrenLength) {
             nextIndex = 0;
           }
-          return setSwipeableData({ data: { index: nextIndex } });
+          return setSwipeableData({ data: { index: nextIndex, offsetX: 0 } });
         }
         const offsetTime = Date.now() - startTime;
         const targetX = target * this.base.clientWidth;
@@ -139,25 +141,11 @@ export class Swipeable extends React.PureComponent {
 
   render() {
     const { deltaY } = this.state;
-    const { children, index, offsetX } = this.props;
-    const childrenArray = React.Children.toArray(children);
-    const previous =
-      childrenArray[index - 1] ||
-      childrenArray[childrenArray.length - 1];
-    const current = childrenArray[index];
-    const next = childrenArray[index + 1] || childrenArray[0];
+    const { children, offsetX } = this.props;
     return (
       <StyledSwipeable ref={el => (this.base = el)}>
         <Axis>{`(${offsetX}, ${deltaY})`}</Axis>
-        <ItemWrapper offsetX={offsetX} deltaY={deltaY}>
-          {previous}
-        </ItemWrapper>
-        <ItemWrapper offsetX={offsetX} deltaY={deltaY}>
-          {current}
-        </ItemWrapper>
-        <ItemWrapper offsetX={offsetX} deltaY={deltaY}>
-          {next}
-        </ItemWrapper>
+        {children}
       </StyledSwipeable>
     );
   }
@@ -181,25 +169,14 @@ Swipeable.defaultProps = {
 
 const StyledSwipeable = styled.div`
   position: relative;
-  display: flex;
   width: 100%;
   height: 100%;
-  overflow: hidden;
 `;
 
 const Axis = styled.div`
   position: absolute;
   top: 0px;
   left: 0px;
-`;
-
-const ItemWrapper = styled.div.attrs(({ offsetX }) => ({
-  style: { transform: `translateX(calc(-100% + ${offsetX}px))` },
-}))`
-  position: relative;
-  flex: none;
-  width: 100%;
-  height: 100%;
 `;
 
 export default Swipeable;
