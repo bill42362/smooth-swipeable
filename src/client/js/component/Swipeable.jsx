@@ -40,11 +40,12 @@ const mapTouchToPosition = e => {
 
 export class Swipeable extends React.PureComponent {
   state = {
-    deltaX: 0,
     deltaY: 0,
   };
 
   componentDidMount() {
+    const { index, childrenLength, setSwipeableData } = this.props;
+
     this.mouseStart = fromEvent(this.base, 'mousedown');
     this.touchStart = fromEvent(this.base, 'touchstart');
     this.mouseMove = fromEvent(document, 'mousemove');
@@ -93,7 +94,7 @@ export class Swipeable extends React.PureComponent {
       )
     );
 
-    this.drag.subscribe(delta => this.setState({ deltaX: delta.x }));
+    this.drag.subscribe(delta => setSwipeableData({ data: { offsetX: delta.x } }));
     this.drop
       .pipe(
         switchMap(data => {
@@ -109,20 +110,19 @@ export class Swipeable extends React.PureComponent {
       )
       .subscribe(({ startTime, target, endDeltaX, isFinal }) => {
         if (isFinal) {
-          const { children, currentIndex, setIndex } = this.props;
-          this.setState({ deltaX: 0 });
-          let nextIndex = currentIndex - target;
+          setSwipeableData({ data: { offsetX: 0 } });
+          let nextIndex = index - target;
           if (-1 === nextIndex) {
-            nextIndex = children.length - 1;
-          } else if (nextIndex === children.length) {
+            nextIndex = childrenLength - 1;
+          } else if (nextIndex === childrenLength) {
             nextIndex = 0;
           }
-          return setIndex({ index: nextIndex });
+          return setSwipeableData({ data: { index: nextIndex } });
         }
         const offsetTime = Date.now() - startTime;
         const targetX = target * this.base.clientWidth;
         const offsetX = ((targetX - endDeltaX) * offsetTime) / ANIMATE_TIME;
-        return this.setState({ deltaX: endDeltaX + offsetX });
+        return setSwipeableData({ data: { offsetX: endDeltaX + offsetX } });
       });
   }
 
@@ -138,24 +138,24 @@ export class Swipeable extends React.PureComponent {
   }
 
   render() {
-    const { deltaX, deltaY } = this.state;
-    const { children, currentIndex } = this.props;
+    const { deltaY } = this.state;
+    const { children, index, offsetX } = this.props;
     const childrenArray = React.Children.toArray(children);
     const previous =
-      childrenArray[currentIndex - 1] ||
+      childrenArray[index - 1] ||
       childrenArray[childrenArray.length - 1];
-    const current = childrenArray[currentIndex];
-    const next = childrenArray[currentIndex + 1] || childrenArray[0];
+    const current = childrenArray[index];
+    const next = childrenArray[index + 1] || childrenArray[0];
     return (
       <StyledSwipeable ref={el => (this.base = el)}>
-        <Axis>{`(${deltaX}, ${deltaY})`}</Axis>
-        <ItemWrapper deltaX={deltaX} deltaY={deltaY}>
+        <Axis>{`(${offsetX}, ${deltaY})`}</Axis>
+        <ItemWrapper offsetX={offsetX} deltaY={deltaY}>
           {previous}
         </ItemWrapper>
-        <ItemWrapper deltaX={deltaX} deltaY={deltaY}>
+        <ItemWrapper offsetX={offsetX} deltaY={deltaY}>
           {current}
         </ItemWrapper>
-        <ItemWrapper deltaX={deltaX} deltaY={deltaY}>
+        <ItemWrapper offsetX={offsetX} deltaY={deltaY}>
           {next}
         </ItemWrapper>
       </StyledSwipeable>
@@ -165,14 +165,18 @@ export class Swipeable extends React.PureComponent {
 
 Swipeable.propTypes = {
   children: PropTypes.node,
-  currentIndex: PropTypes.number,
-  setIndex: PropTypes.func,
+  index: PropTypes.number,
+  offsetX: PropTypes.number,
+  childrenLength: PropTypes.number,
+  setSwipeableData: PropTypes.func,
 };
 
 Swipeable.defaultProps = {
   children: '',
-  currentIndex: 0,
-  setIndex: () => null,
+  index: 0,
+  offsetX: 0,
+  childrenLength: 1,
+  setSwipeableData: () => null,
 };
 
 const StyledSwipeable = styled.div`
@@ -189,8 +193,8 @@ const Axis = styled.div`
   left: 0px;
 `;
 
-const ItemWrapper = styled.div.attrs(({ deltaX }) => ({
-  style: { transform: `translateX(calc(-100% + ${deltaX}px))` },
+const ItemWrapper = styled.div.attrs(({ offsetX }) => ({
+  style: { transform: `translateX(calc(-100% + ${offsetX}px))` },
 }))`
   position: relative;
   flex: none;

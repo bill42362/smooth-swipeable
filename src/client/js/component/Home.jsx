@@ -8,7 +8,7 @@ const email = 'bill42362@gmail.com';
 
 export class Home extends React.PureComponent {
   render() {
-    const { data, index, setIndex } = this.props;
+    const { data, index, offsetX, setSwipeableData } = this.props;
     const colorName = data[index].id.replace(/-/g, ' ').toUpperCase();
     return (
       <StyledHome>
@@ -16,7 +16,12 @@ export class Home extends React.PureComponent {
           <Index color={data[index].code}>{colorName}</Index>
         </Header>
         <SwipeableWrapper>
-          <Swipeable currentIndex={index} setIndex={setIndex}>
+          <Swipeable
+            index={index}
+            offsetX={offsetX}
+            childrenLength={data.length}
+            setSwipeableData={setSwipeableData}
+          >
             {data.map(color => (
               <SwipeableItemWrapper key={color.id}>
                 <Item color={color.code}>
@@ -38,13 +43,15 @@ export class Home extends React.PureComponent {
 Home.propTypes = {
   data: PropTypes.array,
   index: PropTypes.number,
-  setIndex: PropTypes.func,
+  offsetX: PropTypes.number,
+  setSwipeableData: PropTypes.func,
 };
 
 Home.defaultProps = {
   data: [],
   index: 0,
-  setIndex: () => null,
+  offsetX: 0,
+  setSwipeableData: () => null,
 };
 
 const StyledHome = styled.div`
