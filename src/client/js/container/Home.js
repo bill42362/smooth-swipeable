@@ -18,16 +18,15 @@ const mapStateToProps = state => {
   return {
     data: colors,
     index: getOperationData(state, selectPath, 'index'),
-    offsetX: getOperationData(state, selectPath, 'offsetX'),
   };
 };
 
 const mapDispatchToProps = dispatch => {
   return {
-    setSwipeableData: ({ data }) =>
+    setSwipeableIndex: ({ index }) =>
       dispatch({
         type: MERGE_OPERATION_DATA,
-        payload: { selectPath, data },
+        payload: { selectPath, data: { index } },
       }),
   };
 };

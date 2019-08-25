@@ -40,11 +40,12 @@ const mapTouchToPosition = e => {
 
 export class Swipeable extends React.PureComponent {
   state = {
-    deltaY: 0,
+    offsetX: 0,
+    offsetY: 0,
   };
 
   componentDidMount() {
-    const { childrenLength, setSwipeableData } = this.props;
+    const { childrenLength, setSwipeableIndex } = this.props;
 
     this.mouseStart = fromEvent(this.base, 'mousedown');
     this.touchStart = fromEvent(this.base, 'touchstart');
@@ -94,8 +95,8 @@ export class Swipeable extends React.PureComponent {
       )
     );
 
-    this.drag.subscribe(delta =>
-      setSwipeableData({ data: { offsetX: delta.x } })
+    this.drag.subscribe(({ x, y }) =>
+      this.setState({ offsetX: x, offsetY: y })
     );
     this.drop
       .pipe(
@@ -119,12 +120,13 @@ export class Swipeable extends React.PureComponent {
           } else if (nextIndex === childrenLength) {
             nextIndex = 0;
           }
-          return setSwipeableData({ data: { index: nextIndex, offsetX: 0 } });
+          this.setState({ offsetX: 0, offsetY: 0 });
+          return setSwipeableIndex({ index: nextIndex });
         }
         const offsetTime = Date.now() - startTime;
         const targetX = target * this.base.clientWidth;
         const offsetX = ((targetX - endDeltaX) * offsetTime) / ANIMATE_TIME;
-        return setSwipeableData({ data: { offsetX: endDeltaX + offsetX } });
+        return this.setState({ offsetX: endDeltaX + offsetX });
       });
   }
 
@@ -140,31 +142,29 @@ export class Swipeable extends React.PureComponent {
   }
 
   render() {
-    const { deltaY } = this.state;
-    const { children, offsetX } = this.props;
+    const { offsetX, offsetY } = this.state;
+    const { renderProp } = this.props;
     return (
       <StyledSwipeable ref={el => (this.base = el)}>
-        <Axis>{`(${offsetX}, ${deltaY})`}</Axis>
-        {children}
+        <Axis>{`(${offsetX}, ${offsetY})`}</Axis>
+        {renderProp({ offsetX })}
       </StyledSwipeable>
     );
   }
 }
 
 Swipeable.propTypes = {
-  children: PropTypes.node,
+  renderProp: PropTypes.func,
   index: PropTypes.number,
-  offsetX: PropTypes.number,
   childrenLength: PropTypes.number,
-  setSwipeableData: PropTypes.func,
+  setSwipeableIndex: PropTypes.func,
 };
 
 Swipeable.defaultProps = {
-  children: '',
+  renderProp: () => null,
   index: 0,
-  offsetX: 0,
   childrenLength: 1,
-  setSwipeableData: () => null,
+  setSwipeableIndex: () => null,
 };
 
 const StyledSwipeable = styled.div`

@@ -8,7 +8,7 @@ const email = 'bill42362@gmail.com';
 
 export class Home extends React.PureComponent {
   render() {
-    const { data, index, offsetX, setSwipeableData } = this.props;
+    const { data, index, setSwipeableIndex } = this.props;
     const colorName = data[index].id.replace(/-/g, ' ').toUpperCase();
     const previousItem = data[index - 1] || data[data.length - 1];
     const currentItem = data[index];
@@ -21,21 +21,21 @@ export class Home extends React.PureComponent {
         <SwipeableWrapper>
           <Swipeable
             index={index}
-            offsetX={offsetX}
             childrenLength={data.length}
-            setSwipeableData={setSwipeableData}
-          >
-            <SwipeableItems offsetX={offsetX}>
-              {[previousItem, currentItem, nextItem].map(color => (
-                <SwipeableItemWrapper key={color.id}>
-                  <Item color={color.code}>
-                    <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
-                    <Code>{color.code}</Code>
-                  </Item>
-                </SwipeableItemWrapper>
-              ))}
-            </SwipeableItems>
-          </Swipeable>
+            setSwipeableIndex={setSwipeableIndex}
+            renderProp={({ offsetX }) => (
+              <SwipeableItems offsetX={offsetX}>
+                {[previousItem, currentItem, nextItem].map(color => (
+                  <SwipeableItemWrapper key={color.id}>
+                    <Item color={color.code}>
+                      <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
+                      <Code>{color.code}</Code>
+                    </Item>
+                  </SwipeableItemWrapper>
+                ))}
+              </SwipeableItems>
+            )}
+          />
         </SwipeableWrapper>
         <Footer>
           <Email href={`mailto:${email}`}>{email}</Email>
@@ -48,15 +48,13 @@ export class Home extends React.PureComponent {
 Home.propTypes = {
   data: PropTypes.array,
   index: PropTypes.number,
-  offsetX: PropTypes.number,
-  setSwipeableData: PropTypes.func,
+  setSwipeableIndex: PropTypes.func,
 };
 
 Home.defaultProps = {
   data: [],
   index: 0,
-  offsetX: 0,
-  setSwipeableData: () => null,
+  setSwipeableIndex: () => null,
 };
 
 const StyledHome = styled.div`
