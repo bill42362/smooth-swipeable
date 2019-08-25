@@ -5,22 +5,12 @@ import styled from 'styled-components';
 import {
   fromEvent,
   merge,
-  of,
   animationFrameScheduler,
   timer,
-  concat,
   empty,
+  interval,
 } from 'rxjs';
-import {
-  map,
-  concatMap,
-  takeUntil,
-  first,
-  last,
-  switchMap,
-  repeat,
-  catchError,
-} from 'rxjs/operators';
+import { map, concatMap, takeUntil, last, catchError } from 'rxjs/operators';
 
 const ANIMATE_TIME = 300;
 
@@ -48,8 +38,6 @@ export class Swipeable extends React.PureComponent {
   };
 
   componentDidMount() {
-    const { childrenLength, setSwipeableIndex } = this.props;
-
     this.mouseStart = fromEvent(this.base, 'mousedown');
     this.touchStart = fromEvent(this.base, 'touchstart');
     this.mouseMove = fromEvent(document, 'mousemove');
@@ -93,64 +81,40 @@ export class Swipeable extends React.PureComponent {
         )
       )
     );
-    this.drop = this.start.pipe(
-      concatMap(startPosition =>
-        this.end.pipe(
-          first(),
-          map(endPosition => {
-            const { x: startX } = startPosition;
-            const { x: endX } = endPosition;
-            const isForward = startX < endX;
-            const isCancelled =
-              2 * Math.abs(startX - endX) < this.base.clientWidth;
-            return {
-              target: isCancelled ? 0 : isForward ? 1 : -1,
-              endDeltaX: endX - startX,
-            };
-          })
-        )
-      )
-    );
 
     this.drag.subscribe(({ x, y, isFinal }) => {
-      if (isFinal) {
-        const { clientWidth: width } = this.base;
-        const isCancelled = 2 * Math.abs(x) < width;
-        const target = isCancelled ? 0 : x > 0 ? width : -width;
-        return console.log('final() x:', x, ', target:', target);
+      if (!isFinal) {
+        return this.setState({ offsetX: x, offsetY: y });
       }
-      return this.setState({ offsetX: x, offsetY: y });
-    });
-    this.drop
-      .pipe(
-        switchMap(data => {
-          const startTime = Date.now();
-          return concat(
-            of({ ...data, startTime }, animationFrameScheduler).pipe(
-              repeat(),
-              takeUntil(timer(ANIMATE_TIME))
-            ),
-            of({ ...data, isFinal: true })
-          );
-        })
-      )
-      .subscribe(({ startTime, target, endDeltaX, isFinal }) => {
-        if (isFinal) {
-          const { index } = this.props;
-          let nextIndex = index - target;
-          if (-1 === nextIndex) {
-            nextIndex = childrenLength - 1;
-          } else if (nextIndex === childrenLength) {
-            nextIndex = 0;
+
+      const { clientWidth: width } = this.base;
+      const startTime = Date.now();
+      const isCancelled = 2 * Math.abs(x) < width;
+      const targetX = isCancelled ? 0 : x > 0 ? width : -width;
+      return interval(null, animationFrameScheduler)
+        .pipe(takeUntil(timer(ANIMATE_TIME)))
+        .subscribe(
+          () => {
+            const offsetTime = Date.now() - startTime;
+            const offsetX = ((targetX - x) * offsetTime) / ANIMATE_TIME;
+            return this.setState({ offsetX: x + offsetX });
+          },
+          null,
+          () => {
+            if (!isCancelled) {
+              const { index, childrenLength, setSwipeableIndex } = this.props;
+              let nextIndex = index - (x > 0 ? 1 : -1);
+              if (-1 === nextIndex) {
+                nextIndex = childrenLength - 1;
+              } else if (nextIndex === childrenLength) {
+                nextIndex = 0;
+              }
+              setSwipeableIndex({ index: nextIndex });
+            }
+            return this.setState({ offsetX: 0, offsetY: 0 });
           }
-          this.setState({ offsetX: 0, offsetY: 0 });
-          return setSwipeableIndex({ index: nextIndex });
-        }
-        const offsetTime = Date.now() - startTime;
-        const targetX = target * this.base.clientWidth;
-        const offsetX = ((targetX - endDeltaX) * offsetTime) / ANIMATE_TIME;
-        return this.setState({ offsetX: endDeltaX + offsetX });
-      });
+        );
+    });
   }
 
   componentWillUnmount() {
@@ -161,7 +125,6 @@ export class Swipeable extends React.PureComponent {
     this.mouseEnd.unsubscribe();
     this.touchEnd.unsubscribe();
     this.drag.unsubscribe();
-    this.drop.unsubscribe();
   }
 
   render() {
