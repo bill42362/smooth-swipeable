@@ -9,14 +9,17 @@ import {
   animationFrameScheduler,
   timer,
   concat,
+  empty,
 } from 'rxjs';
 import {
   map,
   concatMap,
   takeUntil,
   first,
+  last,
   switchMap,
   repeat,
+  catchError,
 } from 'rxjs/operators';
 
 const ANIMATE_TIME = 300;
@@ -69,17 +72,31 @@ export class Swipeable extends React.PureComponent {
 
     this.drag = this.start.pipe(
       concatMap(startPosition =>
-        this.move.pipe(takeUntil(this.end)).pipe(
-          map(movePosiiton => ({
-            x: movePosiiton.x - startPosition.x,
-            y: movePosiiton.y - startPosition.y,
-          }))
+        merge(
+          this.move.pipe(
+            takeUntil(this.end),
+            map(movePosiiton => ({
+              x: movePosiiton.x - startPosition.x,
+              y: movePosiiton.y - startPosition.y,
+            }))
+          ),
+          this.move.pipe(
+            takeUntil(this.end),
+            last(),
+            catchError(() => empty()),
+            map(movePosiiton => ({
+              isFinal: true,
+              x: movePosiiton.x - startPosition.x,
+              y: movePosiiton.y - startPosition.y,
+            }))
+          )
         )
       )
     );
     this.drop = this.start.pipe(
       concatMap(startPosition =>
-        this.end.pipe(first()).pipe(
+        this.end.pipe(
+          first(),
           map(endPosition => {
             const { x: startX } = startPosition;
             const { x: endX } = endPosition;
@@ -95,9 +112,15 @@ export class Swipeable extends React.PureComponent {
       )
     );
 
-    this.drag.subscribe(({ x, y }) =>
-      this.setState({ offsetX: x, offsetY: y })
-    );
+    this.drag.subscribe(({ x, y, isFinal }) => {
+      if (isFinal) {
+        const { clientWidth: width } = this.base;
+        const isCancelled = 2 * Math.abs(x) < width;
+        const target = isCancelled ? 0 : x > 0 ? width : -width;
+        return console.log('final() x:', x, ', target:', target);
+      }
+      return this.setState({ offsetX: x, offsetY: y });
+    });
     this.drop
       .pipe(
         switchMap(data => {
@@ -138,7 +161,7 @@ export class Swipeable extends React.PureComponent {
     this.mouseEnd.unsubscribe();
     this.touchEnd.unsubscribe();
     this.drag.unsubscribe();
-    this.end.unsubscribe();
+    this.drop.unsubscribe();
   }
 
   render() {
