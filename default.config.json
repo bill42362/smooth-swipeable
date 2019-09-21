@@ -1,0 +1,7 @@
+{
+  "NODE_ENV": "develop",
+  "USE_ABSOLUTE_ROUTE": false,
+  "USE_HTTPS": false,
+  "URL": "https://bill42362.github.io/smooth-swpieable",
+  "GOOGLE_ANALYTICS_ID": ""
+}
