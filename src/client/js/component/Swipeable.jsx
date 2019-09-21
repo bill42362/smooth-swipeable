@@ -10,7 +10,14 @@ import {
   empty,
   interval,
 } from 'rxjs';
-import { map, concatMap, takeUntil, last, catchError } from 'rxjs/operators';
+import {
+  map,
+  concatMap,
+  takeUntil,
+  takeLast,
+  catchError,
+  bufferCount,
+} from 'rxjs/operators';
 
 const ANIMATE_TIME = 300;
 
@@ -37,6 +44,35 @@ export class Swipeable extends React.PureComponent {
     offsetY: 0,
   };
 
+  scrollToIndex = ({ index }) => {
+    const { offsetX: x } = this.state;
+    const { index: currentIndex, setSwipeableIndex } = this.props;
+    const { clientWidth: width } = this.base;
+    const startTime = Date.now();
+    const targetX = Math.sign(currentIndex - index) * width;
+    return interval(null, animationFrameScheduler)
+      .pipe(takeUntil(timer(ANIMATE_TIME)))
+      .subscribe(
+        () => {
+          const offsetTime = Date.now() - startTime;
+          const offsetX = ((targetX - x) * offsetTime) / ANIMATE_TIME;
+          return this.setState({ offsetX: x + offsetX });
+        },
+        null,
+        () => {
+          const { childrenLength } = this.props;
+          if (-1 === index) {
+            setSwipeableIndex({ index: childrenLength - 1 });
+          } else if (childrenLength === index) {
+            setSwipeableIndex({ index: 0 });
+          } else {
+            setSwipeableIndex({ index });
+          }
+          return this.setState({ offsetX: 0, offsetY: 0 });
+        }
+      );
+  };
+
   componentDidMount() {
     this.mouseStart = fromEvent(this.base, 'mousedown');
     this.touchStart = fromEvent(this.base, 'touchstart');
@@ -60,60 +96,55 @@ export class Swipeable extends React.PureComponent {
 
     this.drag = this.start.pipe(
       concatMap(startPosition =>
-        merge(
-          this.move.pipe(
-            takeUntil(this.end),
-            map(movePosiiton => ({
-              x: movePosiiton.x - startPosition.x,
-              y: movePosiiton.y - startPosition.y,
-            }))
-          ),
-          this.move.pipe(
-            takeUntil(this.end),
-            last(),
-            catchError(() => empty()),
-            map(movePosiiton => ({
-              isFinal: true,
-              x: movePosiiton.x - startPosition.x,
-              y: movePosiiton.y - startPosition.y,
-            }))
-          )
+        this.move.pipe(
+          takeUntil(this.end),
+          map(movePosiiton => ({
+            x: movePosiiton.x - startPosition.x,
+            y: movePosiiton.y - startPosition.y,
+          }))
+        )
+      )
+    );
+    this.dragEnd = this.start.pipe(
+      concatMap(startPosition =>
+        this.move.pipe(
+          takeUntil(this.end),
+          map(movePosiiton => ({
+            x: movePosiiton.x - startPosition.x,
+            y: movePosiiton.y - startPosition.y,
+            timestamp: Date.now(),
+          })),
+          takeLast(3),
+          bufferCount(3),
+          catchError(() => empty())
         )
       )
     );
 
-    this.drag.subscribe(({ x, y, isFinal }) => {
-      if (!isFinal) {
-        return this.setState({ offsetX: x, offsetY: y });
-      }
-
+    this.drag.subscribe(({ x, y }) =>
+      this.setState({ offsetX: x, offsetY: y })
+    );
+    // eslint-disable-next-line no-unused-vars
+    this.dragEnd.subscribe(([first, _, last]) => {
+      const { index } = this.props;
       const { clientWidth: width } = this.base;
-      const startTime = Date.now();
-      const isCancelled = 2 * Math.abs(x) < width;
-      const targetX = isCancelled ? 0 : x > 0 ? width : -width;
-      return interval(null, animationFrameScheduler)
-        .pipe(takeUntil(timer(ANIMATE_TIME)))
-        .subscribe(
-          () => {
-            const offsetTime = Date.now() - startTime;
-            const offsetX = ((targetX - x) * offsetTime) / ANIMATE_TIME;
-            return this.setState({ offsetX: x + offsetX });
-          },
-          null,
-          () => {
-            if (!isCancelled) {
-              const { index, childrenLength, setSwipeableIndex } = this.props;
-              let nextIndex = index - (x > 0 ? 1 : -1);
-              if (-1 === nextIndex) {
-                nextIndex = childrenLength - 1;
-              } else if (nextIndex === childrenLength) {
-                nextIndex = 0;
-              }
-              setSwipeableIndex({ index: nextIndex });
-            }
-            return this.setState({ offsetX: 0, offsetY: 0 });
-          }
-        );
+      const time = last.timestamp - first.timestamp;
+      const speed = {
+        x: Math.abs(last.x - first.x) / time,
+        y: Math.abs(last.y - first.y) / time,
+      };
+      const direction = {
+        x: Math.sign(last.x - first.x),
+        y: Math.sign(last.y - first.y),
+      };
+      if (1 < speed.x) {
+        return this.scrollToIndex({ index: index - direction.x });
+      } else if (last.x > 0.5 * width) {
+        return this.scrollToIndex({ index: index - 1 });
+      } else if (last.x < -0.5 * width) {
+        return this.scrollToIndex({ index: index + 1 });
+      }
+      return this.scrollToIndex({ index });
     });
   }
 
@@ -157,6 +188,7 @@ const StyledSwipeable = styled.div`
   position: relative;
   width: 100%;
   height: 100%;
+  overflow: hidden;
 `;
 
 const Axis = styled.div`
