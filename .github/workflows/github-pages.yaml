@@ -16,7 +16,7 @@ jobs:
             "NODE_ENV": "production",
             "USE_ABSOLUTE_ROUTE": true,
             "USE_HTTPS": false,
-            "URL": "https://bill42362.github.io/smooth-swpieable",
+            "URL": "https://bill42362.github.io/smooth-swipeable/",
             "GOOGLE_ANALYTICS_ID": ""
           }
           EOF
