@@ -159,11 +159,10 @@ export class Swipeable extends React.PureComponent {
   }
 
   render() {
-    const { offsetX, offsetY } = this.state;
+    const { offsetX } = this.state;
     const { renderProp } = this.props;
     return (
       <StyledSwipeable ref={el => (this.base = el)}>
-        <Axis>{`(${offsetX}, ${offsetY})`}</Axis>
         {renderProp({ offsetX })}
       </StyledSwipeable>
     );
@@ -188,13 +187,6 @@ const StyledSwipeable = styled.div`
   position: relative;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-`;
-
-const Axis = styled.div`
-  position: absolute;
-  top: 0px;
-  left: 0px;
 `;
 
 export default Swipeable;

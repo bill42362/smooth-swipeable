@@ -1,0 +1,52 @@
+name: GitHub Page
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - v*
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - shell: bash
+        run: |
+          cat <<-EOF > config.json
+          {
+            "NODE_ENV": "production",
+            "USE_ABSOLUTE_ROUTE": true,
+            "USE_HTTPS": false,
+            "URL": "https://bill42362.github.io/smooth-swipeable/",
+            "GOOGLE_ANALYTICS_ID": ""
+          }
+          EOF
+      - run: cat config.json
+      - uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+      - run: npm install
+      - run: npm run buildstatic
+      - run: mv dist/client/html/index.html dist/client/
+      - run: rm -rf dist/client/html
+      - uses: actions/upload-artifact@v1
+        with:
+          name: dist-client
+          path: dist/client
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/download-artifact@v1
+        with:
+          name: dist-client
+          path: dist/client
+      - uses: JamesIves/github-pages-deploy-action@2.0.2
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          BASE_BRANCH: develop
+          BRANCH: gh-pages
+          FOLDER: dist/client
