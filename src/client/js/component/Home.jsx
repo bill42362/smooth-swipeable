@@ -80,6 +80,7 @@ const Index = styled.div.attrs(({ color }) => ({ style: { color } }))`
 const SwipeableWrapper = styled.div`
   height: 70%;
   background-color: #576574;
+  overflow: hidden;
 `;
 
 const SwipeableItems = styled.div.attrs(({ offsetX }) => ({
