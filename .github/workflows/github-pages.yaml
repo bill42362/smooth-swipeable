@@ -26,6 +26,8 @@ jobs:
           node-version: '12.x'
       - run: npm install
       - run: npm run buildstatic
+      - run: mv dist/client/html/index.html dist/client/
+      - run: rm -rf dist/client/html
       - uses: actions/upload-artifact@v1
         with:
           name: dist-client
@@ -40,7 +42,6 @@ jobs:
         with:
           name: dist-client
           path: dist/client
-      - run: cp dist/client/html/index.html dist/client/
       - uses: JamesIves/github-pages-deploy-action@2.0.2
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
