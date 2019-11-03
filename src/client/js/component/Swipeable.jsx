@@ -128,6 +128,9 @@ export class Swipeable extends React.PureComponent {
     this.dragEnd.subscribe(([first, _, last]) => {
       const { index } = this.props;
       const { clientWidth: width } = this.base;
+      if (!last) {
+        return this.scrollToIndex({ index });
+      }
       const time = last.timestamp - first.timestamp;
       const speed = {
         x: Math.abs(last.x - first.x) / time,
