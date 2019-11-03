@@ -4,6 +4,10 @@ import PropTypes from 'prop-types';
 import styled from 'styled-components';
 
 import Swipeable from '../component/Swipeable.jsx';
+
+import EmailIcon from '../../img/email-icon.svg';
+import GithubIcon from '../../img/github-icon.svg';
+
 const email = 'bill42362@gmail.com';
 
 export class Home extends React.PureComponent {
@@ -38,7 +42,12 @@ export class Home extends React.PureComponent {
           />
         </SwipeableWrapper>
         <Footer>
-          <Email href={`mailto:${email}`}>{email}</Email>
+          <Link href="https://github.com/bill42362/smooth-swipeable">
+            <img src={GithubIcon} alt="github" />
+          </Link>
+          <Link href={`mailto:${email}`}>
+            <img src={EmailIcon} alt="email" />
+          </Link>
         </Footer>
       </StyledHome>
     );
@@ -124,8 +133,22 @@ const Footer = styled.div`
   align-items: flex-end;
   padding: 20px;
 `;
-const Email = styled.a`
-  color: #54a0ff;
+const Link = styled.a`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  background-color: #576574;
+
+  & + & {
+    margin-left: 8px;
+  }
+  img {
+    width: 60%;
+    height: auto;
+  }
 `;
 
 export default Home;
