@@ -69,7 +69,7 @@ export default {
   output: {
     filename: isProd ? 'js/[name].[chunkhash:8].js' : 'js/[name].js',
     path: `${__dirname}/../dist/client/`,
-    publicPath: '/',
+    publicPath: isProd ? '' : '/',
     globalObject: "(typeof self !== 'undefined' ? self : this)",
   },
   module: {
