@@ -46,10 +46,15 @@ export class Swipeable extends React.PureComponent {
 
   scrollToIndex = ({ index }) => {
     const { offsetX: x } = this.state;
-    const { index: currentIndex, setSwipeableIndex } = this.props;
+    const {
+      siblingOffset,
+      index: currentIndex,
+      setSwipeableIndex,
+    } = this.props;
     const { clientWidth: width } = this.base;
     const startTime = Date.now();
-    const targetX = Math.sign(currentIndex - index) * width;
+    const itemWidth = (width * (100 - 2 * siblingOffset)) / 100;
+    const targetX = Math.sign(currentIndex - index) * itemWidth;
     return interval(null, animationFrameScheduler)
       .pipe(takeUntil(timer(ANIMATE_TIME)))
       .subscribe(
@@ -74,6 +79,8 @@ export class Swipeable extends React.PureComponent {
   };
 
   componentDidMount() {
+    const { siblingOffset } = this.props;
+
     this.mouseStart = fromEvent(this.base, 'mousedown');
     this.touchStart = fromEvent(this.base, 'touchstart');
     this.mouseMove = fromEvent(document, 'mousemove');
@@ -120,10 +127,15 @@ export class Swipeable extends React.PureComponent {
         )
       )
     );
+    this.click = this.start.pipe(
+      concatMap(() => this.end.pipe(takeUntil(this.move)))
+    );
 
     this.drag.subscribe(({ x, y }) =>
       this.setState({ offsetX: x, offsetY: y })
     );
+
+    const swipeThreshold = (50 - siblingOffset) / 100;
     // eslint-disable-next-line no-unused-vars
     this.dragEnd.subscribe(([first, _, last]) => {
       const { index } = this.props;
@@ -142,12 +154,23 @@ export class Swipeable extends React.PureComponent {
       };
       if (1 < speed.x) {
         return this.scrollToIndex({ index: index - direction.x });
-      } else if (last.x > 0.5 * width) {
+      } else if (last.x > swipeThreshold * width) {
         return this.scrollToIndex({ index: index - 1 });
-      } else if (last.x < -0.5 * width) {
+      } else if (last.x < -swipeThreshold * width) {
         return this.scrollToIndex({ index: index + 1 });
       }
       return this.scrollToIndex({ index });
+    });
+
+    const clickThreshold = siblingOffset / 100;
+    this.click.subscribe(({ x }) => {
+      const { index } = this.props;
+      const { clientWidth: width } = this.base;
+      if (x > (1 - clickThreshold) * width) {
+        return this.scrollToIndex({ index: index + 1 });
+      } else if (x < clickThreshold * width) {
+        return this.scrollToIndex({ index: index - 1 });
+      }
     });
   }
 
@@ -174,6 +197,7 @@ export class Swipeable extends React.PureComponent {
 
 Swipeable.propTypes = {
   renderProp: PropTypes.func,
+  siblingOffset: PropTypes.number,
   index: PropTypes.number,
   childrenLength: PropTypes.number,
   setSwipeableIndex: PropTypes.func,
@@ -181,6 +205,7 @@ Swipeable.propTypes = {
 
 Swipeable.defaultProps = {
   renderProp: () => null,
+  siblingOffset: 0,
   index: 0,
   childrenLength: 1,
   setSwipeableIndex: () => null,

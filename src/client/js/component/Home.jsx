@@ -8,6 +8,7 @@ import Swipeable from '../component/Swipeable.jsx';
 import EmailIcon from '../../img/email-icon.svg';
 import GithubIcon from '../../img/github-icon.svg';
 
+const SIBLING_OFFSET = 10;
 const email = 'bill42362@gmail.com';
 
 export class Home extends React.PureComponent {
@@ -24,6 +25,7 @@ export class Home extends React.PureComponent {
         </Header>
         <SwipeableWrapper>
           <Swipeable
+            siblingOffset={SIBLING_OFFSET}
             index={index}
             childrenLength={data.length}
             setSwipeableIndex={setSwipeableIndex}
@@ -93,7 +95,9 @@ const SwipeableWrapper = styled.div`
 `;
 
 const SwipeableItems = styled.div.attrs(({ offsetX }) => ({
-  style: { transform: `translateX(calc(-100% + ${offsetX}px))` },
+  style: {
+    transform: `translateX(calc(-${100 - 3 * SIBLING_OFFSET}% + ${offsetX}px))`,
+  },
 }))`
   display: flex;
   height: 100%;
@@ -101,7 +105,7 @@ const SwipeableItems = styled.div.attrs(({ offsetX }) => ({
 
 const SwipeableItemWrapper = styled.div`
   flex: none;
-  width: 100%;
+  width: ${100 - 2 * SIBLING_OFFSET}%;
   height: 100%;
   padding: 24px 12px;
 `;
