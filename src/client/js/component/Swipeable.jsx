@@ -127,6 +127,9 @@ export class Swipeable extends React.PureComponent {
         )
       )
     );
+    this.click = this.start.pipe(
+      concatMap(() => this.end.pipe(takeUntil(this.move)))
+    );
 
     this.drag.subscribe(({ x, y }) =>
       this.setState({ offsetX: x, offsetY: y })
@@ -157,6 +160,17 @@ export class Swipeable extends React.PureComponent {
         return this.scrollToIndex({ index: index + 1 });
       }
       return this.scrollToIndex({ index });
+    });
+
+    const clickThreshold = siblingOffset / 100;
+    this.click.subscribe(({ x }) => {
+      const { index } = this.props;
+      const { clientWidth: width } = this.base;
+      if (x > (1 - clickThreshold) * width) {
+        return this.scrollToIndex({ index: index + 1 });
+      } else if (x < clickThreshold * width) {
+        return this.scrollToIndex({ index: index - 1 });
+      }
     });
   }
 
