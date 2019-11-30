@@ -36,6 +36,12 @@ export class Home extends React.PureComponent {
                     <Item color={color.code}>
                       <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
                       <Code>{color.code}</Code>
+                      <Button
+                        color={color.code}
+                        onClick={() => console.log('Copy:', color.code)}
+                      >
+                        Copy
+                      </Button>
                     </Item>
                   </SwipeableItemWrapper>
                 ))}
@@ -113,6 +119,7 @@ const SwipeableItemWrapper = styled.div`
 const Item = styled.div.attrs(({ color }) => ({
   style: { backgroundColor: color },
 }))`
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -128,6 +135,18 @@ const Name = styled.div`
 const Code = styled.div`
   margin-top: 8px;
   font-size: 14px;
+`;
+const Button = styled.button.attrs(({ color }) => ({
+  style: { color },
+}))`
+  position: absolute;
+  bottom: 32px;
+  border: none;
+  border-radius: 8px;
+  background-color: #222f3e;
+  width: 60%;
+  max-width: 200px;
+  height: 44px;
 `;
 
 const Footer = styled.div`
