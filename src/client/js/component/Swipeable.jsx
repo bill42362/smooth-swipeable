@@ -4,22 +4,28 @@ import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import {
   fromEvent,
-  merge,
+  race,
   animationFrameScheduler,
   timer,
   empty,
   interval,
 } from 'rxjs';
 import {
+  share,
   map,
   concatMap,
   takeUntil,
+  first,
   takeLast,
   catchError,
   bufferCount,
 } from 'rxjs/operators';
 
 const ANIMATE_TIME = 300;
+
+// to control global scroll behavior.
+let shouldPreventDefault = false;
+const preventDefault = e => shouldPreventDefault && e.preventDefault();
 
 const mapMouseToPosition = e => {
   e.preventDefault();
@@ -30,7 +36,7 @@ const mapMouseToPosition = e => {
 };
 
 const mapTouchToPosition = e => {
-  e.preventDefault();
+  e.stopPropagation();
   const [touch] = e.changedTouches;
   return {
     x: touch.pageX || touch.clientX,
@@ -86,20 +92,20 @@ export class Swipeable extends React.PureComponent {
     this.mouseMove = fromEvent(document, 'mousemove');
     this.touchMove = fromEvent(document, 'touchmove');
     this.mouseEnd = fromEvent(document, 'mouseup');
-    this.touchEnd = fromEvent(document, 'touchend');
+    this.touchEnd = fromEvent(document, 'touchend', { capture: true });
 
-    this.start = merge(
+    this.start = race(
       this.mouseStart.pipe(map(mapMouseToPosition)),
       this.touchStart.pipe(map(mapTouchToPosition))
-    );
-    this.move = merge(
+    ).pipe(share());
+    this.move = race(
       this.mouseMove.pipe(map(mapMouseToPosition)),
       this.touchMove.pipe(map(mapTouchToPosition))
-    );
-    this.end = merge(
+    ).pipe(share());
+    this.end = race(
       this.mouseEnd.pipe(map(mapMouseToPosition)),
       this.touchEnd.pipe(map(mapTouchToPosition))
-    );
+    ).pipe(share());
 
     this.drag = this.start.pipe(
       concatMap(startPosition =>
@@ -111,6 +117,9 @@ export class Swipeable extends React.PureComponent {
           }))
         )
       )
+    );
+    this.dragStart = this.start.pipe(
+      concatMap(() => this.move.pipe(first(), takeUntil(this.end)))
     );
     this.dragEnd = this.start.pipe(
       concatMap(startPosition =>
@@ -135,9 +144,12 @@ export class Swipeable extends React.PureComponent {
       this.setState({ offsetX: x, offsetY: y })
     );
 
+    document.addEventListener('touchmove', preventDefault, { passive: false });
+    this.dragStart.subscribe(() => (shouldPreventDefault = true));
     const swipeThreshold = (50 - siblingOffset) / 100;
     // eslint-disable-next-line no-unused-vars
     this.dragEnd.subscribe(([first, _, last]) => {
+      shouldPreventDefault = false;
       const { index } = this.props;
       const { clientWidth: width } = this.base;
       if (!last) {
@@ -175,6 +187,9 @@ export class Swipeable extends React.PureComponent {
   }
 
   componentWillUnmount() {
+    document.removeEventListener('touchmove', preventDefault, {
+      passive: false,
+    });
     this.mouseStart.unsubscribe();
     this.touchStart.unsubscribe();
     this.mouseMove.unsubscribe();
