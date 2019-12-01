@@ -56,6 +56,40 @@ export class Home extends React.PureComponent {
     );
   };
 
+  renderItem = ({ color }) => {
+    const { clickedFlags } = this.state;
+    const { data, index } = this.props;
+    const currentItem = data[index];
+    const isCurrentItem = color.id === currentItem.id;
+    const itemClickHandler = isCurrentItem
+      ? this.handleClick({ type: 'items', id: color.id })
+      : undefined;
+    const buttonClickHandler = isCurrentItem
+      ? this.handleClick({ type: 'buttons', id: color.id })
+      : undefined;
+    return (
+      <SwipeableItemWrapper key={color.id}>
+        <Item
+          isClicked={clickedFlags.items[color.id]}
+          color={color.code}
+          onTouchEnd={itemClickHandler}
+          onClick={itemClickHandler}
+        >
+          <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
+          <Code>{color.code}</Code>
+          <Button
+            isClicked={clickedFlags.buttons[color.id]}
+            color={color.code}
+            onTouchEnd={buttonClickHandler}
+            onClick={buttonClickHandler}
+          >
+            Copy
+          </Button>
+        </Item>
+      </SwipeableItemWrapper>
+    );
+  };
+
   componentWillUnmount() {
     Object.keys(this.clickTimeouts).forEach(type =>
       Object.keys(this.clickTimeouts[type]).forEach(id =>
@@ -65,7 +99,6 @@ export class Home extends React.PureComponent {
   }
 
   render() {
-    const { clickedFlags } = this.state;
     const { data, index, setSwipeableIndex } = this.props;
     const colorName = data[index].id.replace(/-/g, ' ').toUpperCase();
     const previousItem = data[index - 1] || data[data.length - 1];
@@ -84,39 +117,9 @@ export class Home extends React.PureComponent {
             setSwipeableIndex={setSwipeableIndex}
             renderProp={({ offsetX }) => (
               <SwipeableItems offsetX={offsetX}>
-                {[previousItem, currentItem, nextItem].map(color => (
-                  <SwipeableItemWrapper key={color.id}>
-                    <Item
-                      isClicked={clickedFlags.items[color.id]}
-                      color={color.code}
-                      onTouchEnd={this.handleClick({
-                        type: 'items',
-                        id: color.id,
-                      })}
-                      onClick={this.handleClick({
-                        type: 'items',
-                        id: color.id,
-                      })}
-                    >
-                      <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
-                      <Code>{color.code}</Code>
-                      <Button
-                        isClicked={clickedFlags.buttons[color.id]}
-                        color={color.code}
-                        onTouchEnd={this.handleClick({
-                          type: 'buttons',
-                          id: color.id,
-                        })}
-                        onClick={this.handleClick({
-                          type: 'buttons',
-                          id: color.id,
-                        })}
-                      >
-                        Copy
-                      </Button>
-                    </Item>
-                  </SwipeableItemWrapper>
-                ))}
+                {[previousItem, currentItem, nextItem].map(color =>
+                  this.renderItem({ color })
+                )}
               </SwipeableItems>
             )}
           />
