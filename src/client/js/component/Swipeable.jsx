@@ -4,13 +4,14 @@ import PropTypes from 'prop-types';
 import styled from 'styled-components';
 import {
   fromEvent,
-  merge,
+  race,
   animationFrameScheduler,
   timer,
   empty,
   interval,
 } from 'rxjs';
 import {
+  share,
   map,
   concatMap,
   takeUntil,
@@ -89,22 +90,22 @@ export class Swipeable extends React.PureComponent {
     this.mouseEnd = fromEvent(document, 'mouseup');
     this.touchEnd = fromEvent(document, 'touchend');
 
-    this.start = merge(
+    this.start = race(
       this.mouseStart.pipe(map(mapMouseToPosition)),
       this.touchStart.pipe(
         map(mapTouchToPosition({ needPreventDefault: false, type: 'start' }))
       )
-    );
-    this.move = merge(
+    ).pipe(share());
+    this.move = race(
       this.mouseMove.pipe(map(mapMouseToPosition)),
       this.touchMove.pipe(map(mapTouchToPosition({ type: 'move' })))
-    );
-    this.end = merge(
+    ).pipe(share());
+    this.end = race(
       this.mouseEnd.pipe(map(mapMouseToPosition)),
       this.touchEnd.pipe(
         map(mapTouchToPosition({ type: 'end', needPreventDefault: false }))
       )
-    );
+    ).pipe(share());
 
     this.drag = this.start.pipe(
       concatMap(startPosition =>
