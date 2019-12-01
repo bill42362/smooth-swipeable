@@ -92,6 +92,7 @@ export class Swipeable extends React.PureComponent {
     this.mouseMove = fromEvent(document, 'mousemove');
     this.touchMove = fromEvent(document, 'touchmove');
     this.mouseEnd = fromEvent(document, 'mouseup');
+    // { capture: true } to prevent triggering child click.
     this.touchEnd = fromEvent(document, 'touchend', { capture: true });
 
     this.start = race(
@@ -144,8 +145,10 @@ export class Swipeable extends React.PureComponent {
       this.setState({ offsetX: x, offsetY: y })
     );
 
+    // to prevent scroll during swiping.
     document.addEventListener('touchmove', preventDefault, { passive: false });
     this.dragStart.subscribe(() => (shouldPreventDefault = true));
+
     const swipeThreshold = (50 - siblingOffset) / 100;
     // eslint-disable-next-line no-unused-vars
     this.dragEnd.subscribe(([first, _, last]) => {
