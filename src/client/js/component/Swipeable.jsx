@@ -29,8 +29,9 @@ const mapMouseToPosition = e => {
   };
 };
 
-const mapTouchToPosition = e => {
-  e.preventDefault();
+const mapTouchToPosition = ({ needPreventDefault = true, type } = {}) => e => {
+  console.log('mapTouchToPosition() type:', type);
+  needPreventDefault && e.preventDefault();
   const [touch] = e.changedTouches;
   return {
     x: touch.pageX || touch.clientX,
@@ -90,15 +91,19 @@ export class Swipeable extends React.PureComponent {
 
     this.start = merge(
       this.mouseStart.pipe(map(mapMouseToPosition)),
-      this.touchStart.pipe(map(mapTouchToPosition))
+      this.touchStart.pipe(
+        map(mapTouchToPosition({ needPreventDefault: false, type: 'start' }))
+      )
     );
     this.move = merge(
       this.mouseMove.pipe(map(mapMouseToPosition)),
-      this.touchMove.pipe(map(mapTouchToPosition))
+      this.touchMove.pipe(map(mapTouchToPosition({ type: 'move' })))
     );
     this.end = merge(
       this.mouseEnd.pipe(map(mapMouseToPosition)),
-      this.touchEnd.pipe(map(mapTouchToPosition))
+      this.touchEnd.pipe(
+        map(mapTouchToPosition({ type: 'end', needPreventDefault: false }))
+      )
     );
 
     this.drag = this.start.pipe(
