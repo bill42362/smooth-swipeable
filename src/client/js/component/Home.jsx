@@ -5,6 +5,7 @@ import styled from 'styled-components';
 
 import Swipeable from '../component/Swipeable.jsx';
 import BlinkBorder from '../style/BlinkBorder.js';
+import media from '../style/media.js';
 
 import EmailIcon from '../../img/email-icon.svg';
 import GithubIcon from '../../img/github-icon.svg';
@@ -16,12 +17,12 @@ export class Home extends React.PureComponent {
   state = {
     clickedFlags: {
       items: {},
-      buttons: {},
+      links: {},
     },
   };
   clickTimeouts = {
     items: {},
-    buttons: {},
+    links: {},
   };
 
   updateClickFlag = ({ type, id, value }) => {
@@ -38,7 +39,6 @@ export class Home extends React.PureComponent {
   };
 
   handleClick = ({ type, id }) => event => {
-    event.preventDefault();
     event.stopPropagation();
     this.updateClickFlag({ type, id, value: false });
     if (!this.clickTimeouts[type][id]) {
@@ -64,8 +64,8 @@ export class Home extends React.PureComponent {
     const itemClickHandler = isCurrentItem
       ? this.handleClick({ type: 'items', id: color.id })
       : undefined;
-    const buttonClickHandler = isCurrentItem
-      ? this.handleClick({ type: 'buttons', id: color.id })
+    const linkClickHandler = isCurrentItem
+      ? this.handleClick({ type: 'links', id: color.id })
       : undefined;
     return (
       <SwipeableItemWrapper key={color.id}>
@@ -77,14 +77,16 @@ export class Home extends React.PureComponent {
         >
           <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
           <Code>{color.code}</Code>
-          <Button
-            isClicked={clickedFlags.buttons[color.id]}
+          <ItemLink
+            href="https://rxjs-dev.firebaseapp.com/api"
+            target="_blank"
             color={color.code}
-            onTouchEnd={buttonClickHandler}
-            onClick={buttonClickHandler}
+            isClicked={clickedFlags.links[color.id]}
+            onTouchEnd={linkClickHandler}
+            onClick={linkClickHandler}
           >
-            Copy
-          </Button>
+            RxJS
+          </ItemLink>
         </Item>
       </SwipeableItemWrapper>
     );
@@ -212,7 +214,8 @@ const Code = styled.div`
   margin-top: 8px;
   font-size: 14px;
 `;
-const Button = styled.button`
+const ItemLink = styled.a`
+  display: block;
   position: absolute;
   bottom: 32px;
   border: 4px solid #222f3e;
@@ -222,12 +225,18 @@ const Button = styled.button`
   max-width: 200px;
   height: 44px;
   color: ${({ color }) => color};
+  text-align: center;
+  line-height: 36px;
   animation: 3s forwards ${({ isClicked }) => (isClicked ? BlinkBorder : '')};
 
   &:hover {
-    border-color: #576574;
     background-color: #576574;
   }
+  ${media.tablet`
+    &:hover {
+      background-color: #222f3e;
+    }
+  `}
 `;
 
 const Footer = styled.div`
