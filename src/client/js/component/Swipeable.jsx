@@ -36,6 +36,7 @@ const mapMouseToPosition = e => {
 };
 
 const mapTouchToPosition = e => {
+  e.stopPropagation();
   const [touch] = e.changedTouches;
   return {
     x: touch.pageX || touch.clientX,
@@ -91,7 +92,7 @@ export class Swipeable extends React.PureComponent {
     this.mouseMove = fromEvent(document, 'mousemove');
     this.touchMove = fromEvent(document, 'touchmove');
     this.mouseEnd = fromEvent(document, 'mouseup');
-    this.touchEnd = fromEvent(document, 'touchend');
+    this.touchEnd = fromEvent(document, 'touchend', { capture: true });
 
     this.start = race(
       this.mouseStart.pipe(map(mapMouseToPosition)),
