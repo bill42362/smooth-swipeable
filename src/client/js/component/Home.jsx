@@ -56,17 +56,17 @@ export class Home extends React.PureComponent {
     );
   };
 
-  renderItem = ({ color }) => {
+  renderItem = ({ color, index, scrollToIndex }) => {
     const { clickedFlags } = this.state;
-    const { data, index } = this.props;
-    const currentItem = data[index];
+    const { data, index: currentItemIndex } = this.props;
+    const currentItem = data[currentItemIndex];
     const isCurrentItem = color.id === currentItem.id;
     const itemClickHandler = isCurrentItem
       ? this.handleClick({ type: 'items', id: color.id })
-      : undefined;
+      : () => scrollToIndex({ index: index - 1 });
     const linkClickHandler = isCurrentItem
       ? this.handleClick({ type: 'links', id: color.id })
-      : undefined;
+      : () => scrollToIndex({ index: index - 1 });
     return (
       <SwipeableItemWrapper key={color.id}>
         <Item
@@ -117,10 +117,10 @@ export class Home extends React.PureComponent {
             index={index}
             childrenLength={data.length}
             setSwipeableIndex={setSwipeableIndex}
-            renderProp={({ offsetX }) => (
+            renderProp={({ offsetX, scrollToIndex }) => (
               <SwipeableItems offsetX={offsetX}>
-                {[previousItem, currentItem, nextItem].map(color =>
-                  this.renderItem({ color })
+                {[previousItem, currentItem, nextItem].map((color, index) =>
+                  this.renderItem({ color, index, scrollToIndex })
                 )}
               </SwipeableItems>
             )}

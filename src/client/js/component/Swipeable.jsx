@@ -7,35 +7,39 @@ import {
   merge,
   race,
   animationFrameScheduler,
-  timer,
   empty,
   interval,
+  Subject,
 } from 'rxjs';
 import {
+  tap,
   share,
   map,
   switchMap,
   concatMap,
   takeUntil,
+  takeWhile,
   first,
   takeLast,
-  startWith,
-  endWith,
   catchError,
   bufferCount,
 } from 'rxjs/operators';
 
-const ANIMATE_TIME = 300;
+const SPEED_REDUCING_RATE = 0.03;
 
 // to control global scroll behavior.
 let shouldPreventTouchMove = false;
 const preventTouchMove = e => shouldPreventTouchMove && e.preventDefault();
+
+let shouldPreventScrollToIndex = false;
+let preventScrollToIndexTimeout = null;
 
 const mapMouseToPosition = e => {
   e.preventDefault();
   return {
     x: e.pageX || e.clientX,
     y: e.pageY || e.clientY,
+    timestamp: Date.now(),
   };
 };
 
@@ -45,7 +49,52 @@ const mapTouchToPosition = e => {
   return {
     x: touch.pageX || touch.clientX,
     y: touch.pageY || touch.clientY,
+    timestamp: Date.now(),
   };
+};
+
+const getXWithInertia = ({
+  initialX,
+  initialSpeed,
+  initialTimestamp,
+  targetX,
+  currentTimestamp,
+}) => {
+  const totalDistance = Math.abs(targetX - initialX);
+
+  // prevent too fast to zero time bug.
+  const deltaTimeMsec = Math.max(1, currentTimestamp - initialTimestamp);
+  const breakDuration = initialSpeed / SPEED_REDUCING_RATE;
+  const breakDistance = 0.5 * initialSpeed * breakDuration;
+  const sameSpeedDistance = Math.max(0, totalDistance - breakDistance);
+  const sameSpeedDuration = sameSpeedDistance / initialSpeed;
+
+  if (deltaTimeMsec > sameSpeedDuration + breakDuration) {
+    return targetX;
+  }
+
+  const direction = Math.sign(targetX - initialX);
+  const sinceBreakDuration = deltaTimeMsec - sameSpeedDuration;
+  // prevent too slow to minus speed bug.
+  const currentSpeed = Math.max(
+    0,
+    initialSpeed - sinceBreakDuration * SPEED_REDUCING_RATE
+  );
+
+  if (deltaTimeMsec < sameSpeedDuration) {
+    return initialX + direction * deltaTimeMsec * initialSpeed;
+  } else {
+    const currentDistance =
+      sameSpeedDistance +
+      0.5 * (initialSpeed + currentSpeed) * sinceBreakDuration;
+    const bounceDistance =
+      0.5 * (sameSpeedDistance + breakDistance + totalDistance);
+    if (currentDistance < bounceDistance) {
+      return initialX + direction * currentDistance;
+    } else {
+      return initialX + direction * (2 * bounceDistance - currentDistance);
+    }
+  }
 };
 
 export class Swipeable extends React.PureComponent {
@@ -53,6 +102,11 @@ export class Swipeable extends React.PureComponent {
     offsetX: 0,
     offsetY: 0,
   };
+
+  beginSwipeIndex = null;
+  scrollToIndexSubject = new Subject();
+  scrollToIndex = ({ index }) =>
+    !shouldPreventScrollToIndex && this.scrollToIndexSubject.next({ index });
 
   getNewIndexAfterScroll = ({ index }) => {
     const { childrenLength } = this.props;
@@ -65,28 +119,33 @@ export class Swipeable extends React.PureComponent {
     }
   };
 
-  scrollToIndexStream = ({ index }) => {
-    const { offsetX: x } = this.state;
-    const { siblingOffset, index: currentIndex } = this.props;
+  decayToIndexStream = ({ index, speed: initialSpeed = 1 }) => {
+    const { offsetX: initialX } = this.state;
+    const { siblingOffset } = this.props;
     const { clientWidth: width } = this.base;
-    const startTime = Date.now();
+    const initialTimestamp = Date.now();
+    let lastFrameX = initialX;
     const itemWidth = (width * (100 - 2 * siblingOffset)) / 100;
-    const targetX = Math.sign(currentIndex - index) * itemWidth;
-    const newIndex = this.getNewIndexAfterScroll({ index });
+    const targetX = -index * itemWidth;
     return interval(null, animationFrameScheduler).pipe(
-      takeUntil(timer(ANIMATE_TIME)),
       map(() => {
-        const offsetTime = Date.now() - startTime;
-        const offsetX = ((targetX - x) * offsetTime) / ANIMATE_TIME;
-        return { x: x + offsetX, y: 0 };
+        const currentTimestamp = Date.now();
+        const newX = getXWithInertia({
+          initialX,
+          initialSpeed,
+          initialTimestamp,
+          targetX,
+          currentTimestamp,
+        });
+        const x = newX - lastFrameX;
+        lastFrameX = newX;
+        return { x, y: 0 };
       }),
-      endWith({ x: 0, y: 0, newIndex })
+      takeWhile(({ x }) => x !== 0)
     );
   };
 
   componentDidMount() {
-    const { siblingOffset } = this.props;
-
     this.mouseStart = fromEvent(this.base, 'mousedown');
     this.touchStart = fromEvent(this.base, 'touchstart');
     this.mouseMove = fromEvent(document, 'mousemove');
@@ -123,101 +182,84 @@ export class Swipeable extends React.PureComponent {
     document.addEventListener('touchmove', preventTouchMove, {
       passive: false,
     });
-    this.dragStart.subscribe(() => (shouldPreventTouchMove = true));
-    this.dragEnd.subscribe(() => (shouldPreventTouchMove = false));
+    this.dragStart.subscribe(() => {
+      this.beginSwipeIndex = this.props.index;
+      return (shouldPreventTouchMove = true);
+    });
+    this.dragEnd.subscribe(() => {
+      this.beginSwipeIndex = null;
+      return (shouldPreventTouchMove = false);
+    });
 
-    const clickThreshold = siblingOffset / 100;
-    const swipeThreshold = (50 - siblingOffset) / 100;
-    this.result = this.start.pipe(
-      switchMap(startPosition =>
-        merge(
-          this.move.pipe(
-            map(movePosiiton => ({
-              ...movePosiiton,
-              type: 'move',
-            }))
-          ),
-          this.end.pipe(
-            map(endPosition => ({
-              ...endPosition,
-              type: 'end',
-            }))
-          )
-        ).pipe(
-          first(),
-          concatMap(event => {
-            if ('move' === event.type) {
-              const { offsetX, offsetY } = this.state;
-              return merge(
-                this.move.pipe(
-                  startWith(event),
-                  takeUntil(this.end),
-                  map(movePosiiton => ({
-                    x: movePosiiton.x - startPosition.x + offsetX,
-                    y: movePosiiton.y - startPosition.y + offsetY,
-                  }))
-                ),
-                this.move.pipe(
-                  takeUntil(this.end),
-                  map(movePosiiton => ({
-                    x: movePosiiton.x - startPosition.x,
-                    y: movePosiiton.y - startPosition.y,
-                    timestamp: Date.now(),
-                  })),
-                  takeLast(3),
-                  bufferCount(3),
-                  catchError(() => empty()),
-                  // eslint-disable-next-line no-unused-vars
-                  concatMap(([first, _, last]) => {
-                    const { index } = this.props;
-                    const { clientWidth: width } = this.base;
-                    if (!last) {
-                      return this.scrollToIndexStream({ index });
-                    }
-                    const time = last.timestamp - first.timestamp;
-                    const speed = {
-                      x: Math.abs(last.x - first.x) / time,
-                      y: Math.abs(last.y - first.y) / time,
-                    };
-                    const direction = {
-                      x: Math.sign(last.x - first.x),
-                      y: Math.sign(last.y - first.y),
-                    };
-                    if (1 < speed.x) {
-                      return this.scrollToIndexStream({
-                        index: index - direction.x,
-                      });
-                    } else if (last.x > swipeThreshold * width) {
-                      return this.scrollToIndexStream({ index: index - 1 });
-                    } else if (last.x < -swipeThreshold * width) {
-                      return this.scrollToIndexStream({ index: index + 1 });
-                    }
-                    return this.scrollToIndexStream({ index });
-                  })
-                )
-              );
-            } else if ('end' === event.type) {
-              const { x } = event;
-              const { index } = this.props;
-              const { clientWidth: width } = this.base;
-              if (x > (1 - clickThreshold) * width) {
-                return this.scrollToIndexStream({ index: index + 1 });
-              } else if (x < clickThreshold * width) {
-                return this.scrollToIndexStream({ index: index - 1 });
-              } else {
-                return empty();
-              }
-            }
-            return { x: 0, y: 0 };
-          })
-        )
-      )
+    this.movement = this.move.pipe(
+      bufferCount(2, 1),
+      map(([a, b]) => ({
+        x: b.x - a.x,
+        y: b.y - a.y,
+        durationMsec: b.timestamp - a.timestamp,
+      })),
+      catchError(() => empty())
     );
-    this.result.subscribe(({ x, y, newIndex }) => {
-      if (undefined !== newIndex) {
-        this.props.setSwipeableIndex({ index: newIndex });
+
+    const { siblingOffset } = this.props;
+    const { clientWidth: width } = this.base;
+    const childWidth = (width * (50 - siblingOffset)) / 50;
+    this.physical = merge(
+      this.start.pipe(map(() => ({ type: 'start' }))),
+      this.scrollToIndexSubject.pipe(map(e => ({ ...e, type: 'scroll' })))
+    ).pipe(
+      switchMap(event => {
+        if ('start' === event.type) {
+          return merge(
+            this.movement.pipe(takeUntil(this.end)),
+            this.movement.pipe(
+              takeUntil(this.end),
+              takeLast(1),
+              tap(() => {
+                clearTimeout(preventScrollToIndexTimeout);
+                shouldPreventScrollToIndex = true;
+                preventScrollToIndexTimeout = setTimeout(
+                  () => (shouldPreventScrollToIndex = false)
+                );
+              }),
+              concatMap(({ x, durationMsec }) => {
+                const speed = Math.abs(x) / durationMsec;
+                // this.beginSwipeIndex to prevent jump two items.
+                if (0.5 < speed && this.beginSwipeIndex === this.props.index) {
+                  return this.decayToIndexStream({
+                    index: -Math.sign(x),
+                    speed: Math.max(1, speed),
+                  });
+                }
+                return this.decayToIndexStream({ index: 0 });
+              })
+            ),
+            this.end.pipe(
+              takeUntil(this.movement),
+              concatMap(() => this.decayToIndexStream({ index: 0 }))
+            )
+          );
+        } else if ('scroll' === event.type) {
+          return this.decayToIndexStream({ index: event.index });
+        }
+        return this.decayToIndexStream({ index: 0 });
+      })
+    );
+
+    this.physical.subscribe(({ x, y }) => {
+      const { offsetX, offsetY } = this.state;
+      let newOffsetX = offsetX + x;
+      const sign = Math.sign(newOffsetX);
+      const absNewOffsetX = Math.abs(newOffsetX);
+      if (0.5 * childWidth < absNewOffsetX) {
+        newOffsetX = sign * (absNewOffsetX - childWidth);
+        this.props.setSwipeableIndex({
+          index: this.getNewIndexAfterScroll({
+            index: this.props.index - sign,
+          }),
+        });
       }
-      return this.setState({ offsetX: x, offsetY: y });
+      return this.setState({ offsetX: newOffsetX, offsetY: offsetY + y });
     });
   }
 
@@ -239,7 +281,7 @@ export class Swipeable extends React.PureComponent {
     const { renderProp } = this.props;
     return (
       <StyledSwipeable ref={el => (this.base = el)}>
-        {renderProp({ offsetX })}
+        {renderProp({ offsetX, scrollToIndex: this.scrollToIndex })}
       </StyledSwipeable>
     );
   }
