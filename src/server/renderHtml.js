@@ -17,6 +17,7 @@ const defaultHelmet = {
     <meta data-react-helmet=true property=og:title content="${packageConfig.name}"/>
     <meta data-react-helmet=true property=og:description content="${packageConfig.description}"/>
     <meta data-react-helmet=true property=og:site_name content="${packageConfig.name}"/>
+    <meta data-react-helmet=true property=app:version content="${packageConfig.version}"/>
   `,
   title: `<title data-react-helmet=true>${packageConfig.name}</title>`,
   link: '',
