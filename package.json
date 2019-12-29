@@ -1,6 +1,6 @@
 {
   "name": "smooth-swipeable",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "Swipe React HOC with RxJS.",
   "repository": {
     "type": "git",
