@@ -133,6 +133,9 @@ export class Swipeable extends React.PureComponent {
           initialTimestamp,
           targetX,
         });
+        if (null === x) {
+          return { x, y: 0 };
+        }
         const deltaX = x - lastFrameX;
         lastFrameX = x;
         return { x: deltaX, y: 0 };
