@@ -58,19 +58,17 @@ const getXWithInertia = ({
   initialSpeed,
   initialTimestamp,
   targetX,
-  currentTimestamp,
 }) => {
   const totalDistance = Math.abs(targetX - initialX);
 
-  // prevent too fast to zero time bug.
-  const deltaTimeMsec = Math.max(1, currentTimestamp - initialTimestamp);
+  const deltaTimeMsec = Date.now() - initialTimestamp;
   const breakDuration = initialSpeed / SPEED_REDUCING_RATE;
   const breakDistance = 0.5 * initialSpeed * breakDuration;
   const sameSpeedDistance = Math.max(0, totalDistance - breakDistance);
   const sameSpeedDuration = sameSpeedDistance / initialSpeed;
 
   if (deltaTimeMsec > sameSpeedDuration + breakDuration) {
-    return targetX;
+    return null;
   }
 
   const direction = Math.sign(targetX - initialX);
@@ -129,19 +127,17 @@ export class Swipeable extends React.PureComponent {
     const targetX = -index * itemWidth;
     return interval(null, animationFrameScheduler).pipe(
       map(() => {
-        const currentTimestamp = Date.now();
-        const newX = getXWithInertia({
+        const x = getXWithInertia({
           initialX,
           initialSpeed,
           initialTimestamp,
           targetX,
-          currentTimestamp,
         });
-        const x = newX - lastFrameX;
-        lastFrameX = newX;
-        return { x, y: 0 };
+        const deltaX = x - lastFrameX;
+        lastFrameX = x;
+        return { x: deltaX, y: 0 };
       }),
-      takeWhile(({ x }) => x !== 0)
+      takeWhile(({ x }) => x !== null)
     );
   };
 
