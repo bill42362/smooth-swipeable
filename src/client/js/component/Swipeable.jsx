@@ -12,7 +12,6 @@ import {
   Subject,
 } from 'rxjs';
 import {
-  tap,
   share,
   map,
   switchMap,
@@ -30,9 +29,6 @@ const SPEED_REDUCING_RATE = 0.03;
 // to control global scroll behavior.
 let shouldPreventTouchMove = false;
 const preventTouchMove = e => shouldPreventTouchMove && e.preventDefault();
-
-let shouldPreventScrollToIndex = false;
-let preventScrollToIndexTimeout = null;
 
 const mapMouseToPosition = e => {
   e.preventDefault();
@@ -103,8 +99,7 @@ export class Swipeable extends React.PureComponent {
 
   beginSwipeIndex = null;
   scrollToIndexSubject = new Subject();
-  scrollToIndex = ({ index }) =>
-    !shouldPreventScrollToIndex && this.scrollToIndexSubject.next({ index });
+  scrollToIndex = ({ index }) => this.scrollToIndexSubject.next({ index });
 
   getNewIndexAfterScroll = ({ index }) => {
     const { childrenLength } = this.props;
@@ -214,13 +209,6 @@ export class Swipeable extends React.PureComponent {
             this.movement.pipe(
               takeUntil(this.end),
               takeLast(1),
-              tap(() => {
-                clearTimeout(preventScrollToIndexTimeout);
-                shouldPreventScrollToIndex = true;
-                preventScrollToIndexTimeout = setTimeout(
-                  () => (shouldPreventScrollToIndex = false)
-                );
-              }),
               concatMap(({ x, durationMsec }) => {
                 const speed = Math.abs(x) / durationMsec;
                 // this.beginSwipeIndex to prevent jump two items.
@@ -234,7 +222,7 @@ export class Swipeable extends React.PureComponent {
               })
             ),
             this.end.pipe(
-              takeUntil(this.movement),
+              takeUntil(this.move),
               concatMap(() => this.decayToIndexStream({ index: 0 }))
             )
           );
