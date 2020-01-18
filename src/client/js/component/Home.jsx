@@ -38,8 +38,7 @@ export class Home extends React.PureComponent {
     });
   };
 
-  handleClick = ({ type, id }) => event => {
-    event.stopPropagation();
+  handleClick = ({ type, id }) => () => {
     this.updateClickFlag({ type, id, value: false });
     if (!this.clickTimeouts[type][id]) {
       this.clickTimeouts[type][id] = [];
@@ -73,7 +72,7 @@ export class Home extends React.PureComponent {
           isClicked={clickedFlags.items[color.id]}
           color={color.code}
           onTouchEnd={itemClickHandler}
-          onClick={itemClickHandler}
+          onMouseUp={itemClickHandler}
         >
           <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
           <Code>{color.code}</Code>
@@ -83,7 +82,7 @@ export class Home extends React.PureComponent {
             color={color.code}
             isClicked={clickedFlags.links[color.id]}
             onTouchEnd={linkClickHandler}
-            onClick={linkClickHandler}
+            onMouseUp={linkClickHandler}
           >
             RxJS
           </ItemLink>

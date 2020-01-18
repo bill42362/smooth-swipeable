@@ -26,12 +26,15 @@ import {
 
 const SPEED_REDUCING_RATE = 0.03;
 
+let shouldStopPropogation = false;
+
 // to control global scroll behavior.
 let shouldPreventTouchMove = false;
 const preventTouchMove = e => shouldPreventTouchMove && e.preventDefault();
 
 const mapMouseToPosition = e => {
   e.preventDefault();
+  shouldStopPropogation && e.stopPropagation();
   return {
     x: e.pageX || e.clientX,
     y: e.pageY || e.clientY,
@@ -40,7 +43,7 @@ const mapMouseToPosition = e => {
 };
 
 const mapTouchToPosition = e => {
-  e.stopPropagation();
+  shouldStopPropogation && e.stopPropagation();
   const [touch] = e.changedTouches;
   return {
     x: touch.pageX || touch.clientX,
@@ -140,13 +143,14 @@ export class Swipeable extends React.PureComponent {
   };
 
   componentDidMount() {
+    const body = document.getElementsByTagName('body')[0];
     this.mouseStart = fromEvent(this.base, 'mousedown');
     this.touchStart = fromEvent(this.base, 'touchstart');
-    this.mouseMove = fromEvent(document, 'mousemove');
-    this.touchMove = fromEvent(document, 'touchmove');
-    this.mouseEnd = fromEvent(document, 'mouseup');
-    // { capture: true } to prevent triggering child click.
-    this.touchEnd = fromEvent(document, 'touchend', { capture: true });
+    this.mouseMove = fromEvent(body, 'mousemove');
+    this.touchMove = fromEvent(body, 'touchmove');
+    // { capture: true } to prevent triggering child click after swipe.
+    this.mouseEnd = fromEvent(body, 'mouseup', { capture: true });
+    this.touchEnd = fromEvent(body, 'touchend', { capture: true });
 
     this.start = race(
       this.mouseStart.pipe(map(mapMouseToPosition)),
@@ -178,10 +182,12 @@ export class Swipeable extends React.PureComponent {
     });
     this.dragStart.subscribe(() => {
       this.beginSwipeIndex = this.props.index;
+      shouldStopPropogation = true;
       return (shouldPreventTouchMove = true);
     });
     this.dragEnd.subscribe(() => {
       this.beginSwipeIndex = null;
+      shouldStopPropogation = false;
       return (shouldPreventTouchMove = false);
     });
 
@@ -220,10 +226,6 @@ export class Swipeable extends React.PureComponent {
                 }
                 return this.decayToIndexStream({ index: 0 });
               })
-            ),
-            this.end.pipe(
-              takeUntil(this.move),
-              concatMap(() => this.decayToIndexStream({ index: 0 }))
             )
           );
         } else if ('scroll' === event.type) {
