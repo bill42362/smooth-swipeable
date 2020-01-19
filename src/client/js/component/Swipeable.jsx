@@ -14,6 +14,7 @@ import {
 import {
   share,
   map,
+  filter,
   switchMap,
   concatMap,
   takeUntil,
@@ -30,8 +31,8 @@ let shouldStopPropogation = false;
 const checkStopPropogation = e => shouldStopPropogation && e.stopPropagation();
 
 // to control global scroll behavior.
-let shouldPreventTouchMove = false;
-const preventTouchMove = e => shouldPreventTouchMove && e.preventDefault();
+let shouldPreventScroll = false;
+const preventTouchMove = e => shouldPreventScroll && e.preventDefault();
 
 const mapMouseToPosition = e => {
   e.preventDefault();
@@ -167,7 +168,16 @@ export class Swipeable extends React.PureComponent {
     ).pipe(share());
 
     this.dragStart = this.start.pipe(
-      concatMap(() => this.move.pipe(first(), takeUntil(this.end)))
+      concatMap(startEvent =>
+        this.move.pipe(
+          first(),
+          takeUntil(this.end),
+          map(e => ({
+            deltaX: e.x - startEvent.x,
+            deltaY: e.y - startEvent.y,
+          }))
+        )
+      )
     );
     this.dragEnd = this.start.pipe(
       concatMap(() =>
@@ -185,15 +195,16 @@ export class Swipeable extends React.PureComponent {
     document.addEventListener('click', checkStopPropogation, {
       capture: true,
     });
-    this.dragStart.subscribe(() => {
+    this.dragStart.subscribe(({ deltaX, deltaY }) => {
       this.beginSwipeIndex = this.props.index;
       shouldStopPropogation = true;
-      return (shouldPreventTouchMove = true);
+      return (shouldPreventScroll = Math.abs(deltaX) > Math.abs(deltaY));
     });
     this.dragEnd.subscribe(() => {
-      this.beginSwipeIndex = null;
-      shouldPreventTouchMove = false;
-      // use setTimeout() because click events fires after mouseup.
+      // use setTimeout() because dragEnd fires before swipe ending events.
+      setTimeout(() => (this.beginSwipeIndex = null));
+      shouldPreventScroll = false;
+      // use setTimeout() because children click events fires after mouseup.
       return setTimeout(() => (shouldStopPropogation = false));
     });
 
@@ -211,7 +222,10 @@ export class Swipeable extends React.PureComponent {
     const { clientWidth: width } = this.base;
     const childWidth = (width * (50 - siblingOffset)) / 50;
     this.physical = merge(
-      this.start.pipe(map(() => ({ type: 'start' }))),
+      this.dragStart.pipe(
+        filter(({ deltaX, deltaY }) => Math.abs(deltaX) > Math.abs(deltaY)),
+        map(() => ({ type: 'start' }))
+      ),
       this.scrollToIndexSubject.pipe(map(e => ({ ...e, type: 'scroll' })))
     ).pipe(
       switchMap(event => {
