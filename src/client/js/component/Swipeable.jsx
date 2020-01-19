@@ -27,6 +27,7 @@ import {
 const SPEED_REDUCING_RATE = 0.03;
 
 let shouldStopPropogation = false;
+const checkStopPropogation = e => shouldStopPropogation && e.stopPropagation();
 
 // to control global scroll behavior.
 let shouldPreventTouchMove = false;
@@ -34,7 +35,7 @@ const preventTouchMove = e => shouldPreventTouchMove && e.preventDefault();
 
 const mapMouseToPosition = e => {
   e.preventDefault();
-  shouldStopPropogation && e.stopPropagation();
+  checkStopPropogation(e);
   return {
     x: e.pageX || e.clientX,
     y: e.pageY || e.clientY,
@@ -43,7 +44,7 @@ const mapMouseToPosition = e => {
 };
 
 const mapTouchToPosition = e => {
-  shouldStopPropogation && e.stopPropagation();
+  checkStopPropogation(e);
   const [touch] = e.changedTouches;
   return {
     x: touch.pageX || touch.clientX,
@@ -180,6 +181,10 @@ export class Swipeable extends React.PureComponent {
     document.addEventListener('touchmove', preventTouchMove, {
       passive: false,
     });
+    // to prevent click after swiping.
+    document.addEventListener('click', checkStopPropogation, {
+      capture: true,
+    });
     this.dragStart.subscribe(() => {
       this.beginSwipeIndex = this.props.index;
       shouldStopPropogation = true;
@@ -187,8 +192,9 @@ export class Swipeable extends React.PureComponent {
     });
     this.dragEnd.subscribe(() => {
       this.beginSwipeIndex = null;
-      shouldStopPropogation = false;
-      return (shouldPreventTouchMove = false);
+      shouldPreventTouchMove = false;
+      // use setTimeout() because click events fires after mouseup.
+      return setTimeout(() => (shouldStopPropogation = false));
     });
 
     this.movement = this.move.pipe(
