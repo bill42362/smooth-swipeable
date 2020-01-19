@@ -72,7 +72,7 @@ export class Home extends React.PureComponent {
           isClicked={clickedFlags.items[color.id]}
           color={color.code}
           onTouchEnd={itemClickHandler}
-          onMouseUp={itemClickHandler}
+          onClick={itemClickHandler}
         >
           <Name>{color.id.replace(/-/g, ' ').toUpperCase()}</Name>
           <Code>{color.code}</Code>
@@ -82,7 +82,7 @@ export class Home extends React.PureComponent {
             color={color.code}
             isClicked={clickedFlags.links[color.id]}
             onTouchEnd={linkClickHandler}
-            onMouseUp={linkClickHandler}
+            onClick={linkClickHandler}
           >
             RxJS
           </ItemLink>
